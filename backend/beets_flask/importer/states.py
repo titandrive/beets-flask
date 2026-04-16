@@ -259,7 +259,7 @@ class TaskState(BaseState):
         # we might run into inconsistencies here, if candidates of the task
         # change. but I do not know when or why they would.
         self.task = task
-        self.candidate_states = [CandidateState(c, self) for c in self.task.candidates]
+        self.candidate_states = [CandidateState(c, self) for c in (self.task.candidates or [])]
         self.progress = ProgressState()
 
     def __repr__(self) -> str:
