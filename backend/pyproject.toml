@@ -42,6 +42,9 @@ dependencies = [
     "pandas",
     "typing_extensions",
     "pytz",
+    "beautifulsoup4",
+    "langdetect",
+    "beets-lyrics-manager",
 ]
 
 [project.optional-dependencies]

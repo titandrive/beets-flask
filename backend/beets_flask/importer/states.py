@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Literal, NotRequired, TypedDict, cast
 from uuid import uuid4 as uuid
 
-import beets.ui.commands as uicommands
+import beets.ui.commands.import_.display as uicommands
 from beets import importer
 from beets.ui import _open_library
 from beets.util import bytestring_path, get_most_common_tags
