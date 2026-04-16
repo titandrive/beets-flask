@@ -19,10 +19,15 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { APIError } from '@/api/common';
-import { sessionQueryOptions, useImportMutation } from '@/api/session';
+import {
+    enqueueMutationOptions,
+    sessionQueryOptions,
+    useImportMutation,
+} from '@/api/session';
+import { useStatusSocket } from '@/components/common/websocket/status';
 import { PenaltyTypeIcon, SourceTypeIcon } from '@/components/common/icons';
 import {
     DuplicateAction,
@@ -34,6 +39,7 @@ import {
     ImportedCandidate,
 } from '@/components/import/candidates/candidateSelector';
 import {
+    EnqueueKind,
     Progress,
     SerializedCandidateState,
     SerializedException,
@@ -87,7 +93,11 @@ export function TagCard({
             }}
         >
             {session.status.progress < Progress.IMPORT_COMPLETED ? (
-                <UserSelection session={session} />
+                <UserSelection
+                    session={session}
+                    folderHash={folderHash}
+                    folderPath={folderPath}
+                />
             ) : (
                 <ChosenCandidatesOverview session={session} />
             )}
@@ -100,7 +110,15 @@ export function TagCard({
  *
  * More or less a stepper showing one task at a time.
  */
-function UserSelection({ session }: { session: SerializedSessionState }) {
+function UserSelection({
+    session,
+    folderHash,
+    folderPath,
+}: {
+    session: SerializedSessionState;
+    folderHash: string;
+    folderPath: string;
+}) {
     const [currentTaskIdx, setCurrentTaskIdx] = useState<number>(0);
     const currentTask = session.tasks[currentTaskIdx];
 
@@ -174,7 +192,11 @@ function UserSelection({ session }: { session: SerializedSessionState }) {
                 />
             )}
             {session.exc?.type === 'NoCandidatesFoundException' && (
-                <NoCandidatesFoundWarning exc={session.exc} />
+                <NoCandidatesFoundWarning
+                    exc={session.exc}
+                    folderHash={folderHash}
+                    folderPath={folderPath}
+                />
             )}
             {session.status.progress == Progress.DELETION_COMPLETED && (
                 <UndoneWarning />
@@ -663,10 +685,17 @@ function AutoImportFailedWarning({
 
 function NoCandidatesFoundWarning({
     exc,
+    folderHash,
+    folderPath,
     ...props
 }: {
     exc: SerializedException;
+    folderHash: string;
+    folderPath: string;
 } & AlertProps) {
+    const { socket } = useStatusSocket();
+    const { mutate, isPending } = useMutation(enqueueMutationOptions);
+
     return (
         <Alert
             severity="warning"
@@ -677,7 +706,28 @@ function NoCandidatesFoundWarning({
             {...props}
         >
             <AlertTitle>No Candidates Found</AlertTitle>
-            <Box>{exc.message}</Box>
+            <Box sx={{ mb: 1 }}>{exc.message}</Box>
+            <Button
+                size="small"
+                variant="outlined"
+                color="warning"
+                startIcon={<TagIcon size={14} />}
+                loading={isPending}
+                onClick={() =>
+                    mutate({
+                        socket,
+                        kind: EnqueueKind.PREVIEW,
+                        autotag: true,
+                        group_albums: false,
+                        selected: {
+                            hashes: [folderHash],
+                            paths: [folderPath],
+                        },
+                    })
+                }
+            >
+                Retag
+            </Button>
         </Alert>
     );
 }
