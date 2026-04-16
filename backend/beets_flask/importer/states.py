@@ -506,6 +506,10 @@ class CandidateState(BaseState):
         items: list[BeetsItem] = task_state.task.items
 
         # FIXME: we do this lookup twice, once here and once in current_metadata
+        # beets 2.9.0: import task items don't have __album initialized
+        for item in items:
+            if not hasattr(item, "_Item__album"):
+                item._cached_album = None
         if len(items) > 0:
             info, _ = get_most_common_tags(items)
         else:
