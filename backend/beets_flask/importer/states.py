@@ -13,7 +13,7 @@ from uuid import uuid4 as uuid
 import beets.ui.commands.import_.display as uicommands
 from beets import importer
 from beets.ui import _open_library
-from beets.util import bytestring_path, get_most_common_tags
+from beets.util import bytestring_path
 from deprecated import deprecated
 
 from beets_flask.config import get_config
@@ -383,7 +383,18 @@ class TaskState(BaseState):
         This is the metadata of the music files on disk.
         (In a beets context, cur_artist and cur_album)
         """
-        likelies, _ = get_most_common_tags(self.items)
+        album_fields = [
+            "artist", "album", "albumartist", "year", "disctotal",
+            "mb_albumid", "label", "barcode", "catalognum", "country",
+            "media", "albumdisambig",
+        ]
+        likelies = {}
+        for field in album_fields:
+            for item in self.items:
+                val = item._fields.get(field)
+                if val is not None:
+                    likelies[field] = val
+                    break
         return Metadata(**{k: str(v) for k, v in likelies.items()})  # type: ignore[typeddict-item]
 
     # ---------------------------------------------------------------------------- #
