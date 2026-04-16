@@ -801,7 +801,10 @@ class ImportSession(BaseSession):
         elif candidate_id == CandidateChoiceFallback.BEST:
             candidate_state = task_state.best_candidate_state
             if candidate_state is None:
-                raise ValueError(f"No candidate found.")
+                raise ValueError(
+                    "No candidates found for this album. "
+                    "Try retagging (re-running preview) from the inbox."
+                )
         elif candidate_id == CandidateChoiceFallback.ASIS:
             candidate_state = task_state.asis_candidate
         else:

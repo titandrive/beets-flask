@@ -9,6 +9,7 @@ from watchdog.observers.polling import PollingObserver
 
 from beets_flask import invoker
 from beets_flask.config import get_config
+from beets_flask.database import db_session_factory
 from beets_flask.database.models.states import SessionStateInDb
 from beets_flask.disk import (
     album_folders_from_track_paths,
@@ -187,15 +188,30 @@ async def auto_tag(folder_path: Path, inbox_kind: str | None = None):
 
     # check if we have a session for this folder already.
     # if so, skip imports but update the previews.
-    state = SessionStateInDb.get_by_hash_and_path(hash=None, path=folder.full_path)
-
     should_enqueue = False
-    if state is None:
-        should_enqueue = True
-    else:
-        # keeps previews fresh when we have integrity warnings (i.e. content changed)
-        if enq_kind == invoker.EnqueueKind.PREVIEW and folder.hash != state.folder_hash:
+    with db_session_factory() as db_session:
+        state = SessionStateInDb.get_by_hash_and_path(
+            hash=None, path=folder.full_path, db_session=db_session
+        )
+        if state is None:
             should_enqueue = True
+        else:
+            # keeps previews fresh when we have integrity warnings (i.e. content changed)
+            if enq_kind == invoker.EnqueueKind.PREVIEW and folder.hash != state.folder_hash:
+                should_enqueue = True
+            # For auto-import: re-enqueue if the session has no candidates, which means
+            # a previous preview failed (e.g. due to beets breaking changes).
+            # enqueue_import_auto always runs a fresh preview first, so this is safe.
+            elif enq_kind == invoker.EnqueueKind.IMPORT_AUTO:
+                has_candidates = state.tasks and any(
+                    len(task.candidates) > 0 for task in state.tasks
+                )
+                if not has_candidates:
+                    log.info(
+                        f"Watchdog: Session for {folder.full_path} has no candidates, "
+                        "re-enqueueing to regenerate preview."
+                    )
+                    should_enqueue = True
 
     if should_enqueue:
         log.info(f"Watchdog: Enqueuing {folder.full_path} as {enq_kind.value}")
