@@ -391,8 +391,8 @@ class TaskState(BaseState):
         likelies = {}
         for field in album_fields:
             for item in self.items:
-                val = item._fields.get(field)
-                if val is not None:
+                val = item.get(field, default=None, with_album=False)
+                if val is not None and val != "":
                     likelies[field] = val
                     break
         return Metadata(**{k: str(v) for k, v in likelies.items()})  # type: ignore[typeddict-item]
@@ -517,10 +517,9 @@ class CandidateState(BaseState):
         items: list[BeetsItem] = task_state.task.items
 
         # FIXME: we do this lookup twice, once here and once in current_metadata
-        # beets 2.9.0: get_most_common_tags calls item.get() which tries
-        # _cached_album as a fallback for missing fields (e.g. data_source),
-        # but raw import task items don't have _cached_album initialized.
-        # Read directly from _fields/_dirty instead.
+        # beets 2.9.0: item.get() with default with_album=True tries _cached_album
+        # as a fallback for missing fields. Use with_album=False to skip that.
+        # Note: item._fields is a ClassVar of {field: Type}, NOT field values.
         if len(items) > 0:
             album_fields = [
                 "artist", "album", "albumartist", "year", "disctotal",
@@ -530,8 +529,8 @@ class CandidateState(BaseState):
             info = {}
             for field in album_fields:
                 for item in items:
-                    val = item._fields.get(field)
-                    if val is not None:
+                    val = item.get(field, default=None, with_album=False)
+                    if val is not None and val != "":
                         info[field] = val
                         break
         else:
