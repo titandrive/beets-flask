@@ -506,12 +506,23 @@ class CandidateState(BaseState):
         items: list[BeetsItem] = task_state.task.items
 
         # FIXME: we do this lookup twice, once here and once in current_metadata
-        # beets 2.9.0: import task items don't have __album initialized
-        for item in items:
-            if not hasattr(item, "_Item__album"):
-                item._cached_album = None
+        # beets 2.9.0: get_most_common_tags calls item.get() which tries
+        # _cached_album as a fallback for missing fields (e.g. data_source),
+        # but raw import task items don't have _cached_album initialized.
+        # Read directly from _fields/_dirty instead.
         if len(items) > 0:
-            info, _ = get_most_common_tags(items)
+            album_fields = [
+                "artist", "album", "albumartist", "year", "disctotal",
+                "mb_albumid", "label", "barcode", "catalognum", "country",
+                "media", "albumdisambig",
+            ]
+            info = {}
+            for field in album_fields:
+                for item in items:
+                    val = item._fields.get(field)
+                    if val is not None:
+                        info[field] = val
+                        break
         else:
             info = {}
         info["data_source"] = "asis"
