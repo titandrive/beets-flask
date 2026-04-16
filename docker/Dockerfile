@@ -1,14 +1,14 @@
-FROM python:3.11-alpine3.20 AS base
+FROM python:3.11-slim-bookworm AS base
 
 FROM base AS deps
 
 
-RUN addgroup -g 1000 beetle && \
-    adduser -D -u 1000 -G beetle beetle
+RUN groupadd -g 1000 beetle && \
+    useradd -u 1000 -g beetle -m -s /bin/bash beetle
 
 ENV HOSTNAME="beets-container"
 ENV EDITOR="vi"
-# need to set some cli editor so `beet edit` works, vi comes with alpine
+# need to set some cli editor so `beet edit` works
 
 # map beets directory and our configs to /config
 RUN mkdir -p /config/beets
@@ -26,20 +26,17 @@ RUN mkdir -p /music/imported
 RUN chown -R beetle:beetle /music
 
 # dependencies
-# RUN --mount=type=cache,target=/var/cache/apk \
-RUN apk update
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk add \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
-    redis  \
+    redis-server \
     bash \
     tmux \
-    shadow \
+    vim-tiny \
     git \
     ffmpeg \
     gcc \
     cmake \
-    musl-dev
+    && rm -rf /var/lib/apt/lists/*
 
 
 # Install backend dependencies
@@ -79,9 +76,9 @@ RUN python -c "import tomllib; print(tomllib.load(open('/repo/backend/pyproject.
 
 FROM deps AS dev
 
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk add \
-    npm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm
 RUN pnpm config set store-dir /repo/frontend/.pnpm-store
@@ -117,9 +114,9 @@ ENTRYPOINT [ \
 FROM deps AS build
 # Build frontend files
 
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk add \
-    npm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    npm \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm
 RUN pnpm config set store-dir /repo/frontend/.pnpm-store
@@ -164,5 +161,3 @@ ENTRYPOINT [ \
     /repo/entrypoint_user_scripts.sh && \
     su beetle -c /repo/entrypoint.sh" \
     ]
-
-
