@@ -36,7 +36,10 @@ RUN --mount=type=cache,target=/var/cache/apk \
     tmux \
     shadow \
     git \
-    ffmpeg
+    ffmpeg \
+    gcc \
+    cmake \
+    musl-dev
 
 
 # Install backend dependencies
