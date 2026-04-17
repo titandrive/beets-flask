@@ -402,7 +402,11 @@ def all_album_folders(root_dir: Path | str, subdirs: bool = False) -> list[Path]
             else:
                 folders.append(paths[0])
 
-    return [Path(f.decode("utf-8")) for f in folders]
+    return [
+        p
+        for p in (Path(f.decode("utf-8")) for f in folders)
+        if not any(part.startswith(".") for part in p.parts)
+    ]
 
 
 def is_within_multi_dir(path: Path | str) -> bool:

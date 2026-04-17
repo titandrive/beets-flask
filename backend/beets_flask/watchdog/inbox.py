@@ -196,22 +196,20 @@ async def auto_tag(folder_path: Path, inbox_kind: str | None = None):
         if state is None:
             should_enqueue = True
         else:
-            # keeps previews fresh when we have integrity warnings (i.e. content changed)
-            if enq_kind == invoker.EnqueueKind.PREVIEW and folder.hash != state.folder_hash:
-                should_enqueue = True
-            # For auto-import: re-enqueue if the session has no candidates, which means
-            # a previous preview failed (e.g. due to beets breaking changes).
-            # enqueue_import_auto always runs a fresh preview first, so this is safe.
-            elif enq_kind == invoker.EnqueueKind.IMPORT_AUTO:
-                has_candidates = state.tasks and any(
-                    len(task.candidates) > 0 for task in state.tasks
+            # Re-enqueue if the session has no candidates — means a previous preview
+            # failed (e.g. due to beets breaking changes). Applies to all kinds.
+            has_candidates = state.tasks and any(
+                len(task.candidates) > 0 for task in state.tasks
+            )
+            if not has_candidates:
+                log.info(
+                    f"Watchdog: Session for {folder.full_path} has no candidates, "
+                    "re-enqueueing to regenerate preview."
                 )
-                if not has_candidates:
-                    log.info(
-                        f"Watchdog: Session for {folder.full_path} has no candidates, "
-                        "re-enqueueing to regenerate preview."
-                    )
-                    should_enqueue = True
+                should_enqueue = True
+            # Also re-enqueue previews when folder content changed (integrity check).
+            elif enq_kind == invoker.EnqueueKind.PREVIEW and folder.hash != state.folder_hash:
+                should_enqueue = True
 
     if should_enqueue:
         log.info(f"Watchdog: Enqueuing {folder.full_path} as {enq_kind.value}")
